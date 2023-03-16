@@ -6,8 +6,8 @@
 
 ### OPTIONS AND VARIABLES ###
 
-dotfilesrepo="https://github.com/lukesmithxyz/voidrice.git"
-progsfile="https://raw.githubusercontent.com/LukeSmithxyz/LARBS/master/static/progs.csv"
+dotfilesrepo="https://github.com/matthew55/dotfiles.git"
+progsfile="https://raw.githubusercontent.com/matthew55/LARBS/master/static/progs.csv"
 aurhelper="yay"
 repobranch="master"
 export TERM=ansi
@@ -208,7 +208,7 @@ makeuserjs(){
 	arkenfox="$pdir/arkenfox.js"
 	overrides="$pdir/user-overrides.js"
 	userjs="$pdir/user.js"
-	ln -fs "/home/$name/.config/firefox/larbs.js" "$overrides"
+	ln -fs "/home/$name/.config/firefox/user-overrides.js" "$overrides"
 	[ ! -f "$arkenfox" ] && curl -sL "https://raw.githubusercontent.com/arkenfox/user.js/master/user.js" > "$arkenfox"
 	cat "$arkenfox" "$overrides" > "$userjs"
 	chown "$name:wheel" "$arkenfox" "$userjs"
@@ -232,7 +232,7 @@ Exec=/usr/local/lib/arkenfox-auto-update" > /etc/pacman.d/hooks/arkenfox.hook
 }
 
 installffaddons(){
-	addonlist="ublock-origin decentraleyes istilldontcareaboutcookies vim-vixen"
+	addonlist="ublock-origin darkreader sponsorblock return-youtube-dislikes flagfox tabliss gloc vim-vixen"
 	addontmp="$(mktemp -d)"
 	trap "rm -fr $addontmp" HUP INT QUIT TERM PWR EXIT
 	IFS=' '
@@ -374,7 +374,7 @@ pkill -u "$name" librewolf
 # Allow wheel users to sudo with password and allow several system commands
 # (like `shutdown` to run without password).
 echo "%wheel ALL=(ALL:ALL) ALL" >/etc/sudoers.d/00-larbs-wheel-can-sudo
-echo "%wheel ALL=(ALL:ALL) NOPASSWD: /usr/bin/shutdown,/usr/bin/reboot,/usr/bin/systemctl suspend,/usr/bin/wifi-menu,/usr/bin/mount,/usr/bin/umount,/usr/bin/pacman -Syu,/usr/bin/pacman -Syyu,/usr/bin/pacman -Syyu --noconfirm,/usr/bin/loadkeys,/usr/bin/pacman -Syyuw --noconfirm,/usr/bin/pacman -S -u -y --config /etc/pacman.conf --,/usr/bin/pacman -S -y -u --config /etc/pacman.conf --" >/etc/sudoers.d/01-larbs-cmds-without-password
+echo "%wheel ALL=(ALL:ALL) NOPASSWD: /usr/bin/shutdown,/usr/bin/reboot,/usr/bin/systemctl suspend,/usr/bin/wifi-menu,/usr/bin/nmtui,/usr/bin/mount,/usr/bin/umount,/usr/bin/pacman -Syu,/usr/bin/pacman -Syyu,/usr/bin/pacman -Syyu --noconfirm,/usr/bin/loadkeys,/usr/bin/pacman -Syyuw --noconfirm,/usr/bin/pacman -S -u -y --config /etc/pacman.conf --,/usr/bin/pacman -S -y -u --config /etc/pacman.conf --" >/etc/sudoers.d/01-larbs-cmds-without-password
 echo "Defaults editor=/usr/bin/nvim" >/etc/sudoers.d/02-larbs-visudo-editor
 mkdir -p /etc/sysctl.d
 echo "kernel.dmesg_restrict = 0" > /etc/sysctl.d/dmesg.conf
