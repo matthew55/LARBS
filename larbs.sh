@@ -4,14 +4,12 @@
 # by Luke Smith <luke@lukesmith.xyz>
 # License: GNU GPLv3
 
-# THIS SCRIPT ASSUMES THE USER IS USING SYSTEMD.
-
 ### OPTIONS AND VARIABLES ###
 
 dotfilesrepo="https://github.com/matthew55/dotfiles.git"
-progsfile="https://raw.githubusercontent.com/matthew55/LARBS/master/static/progs.csv"
+progsfile="https://raw.githubusercontent.com/matthew55/LARBS/master/progs.csv"
 aurhelper="yay"
-repobranch="master"
+repobranch="main"
 export TERM=ansi
 
 ### FUNCTIONS ###
@@ -71,7 +69,7 @@ adduserandpass() {
 	whiptail --infobox "Adding user \"$name\"..." 7 50
 	useradd -m -g wheel -s /bin/zsh "$name" >/dev/null 2>&1 ||
 		usermod -a -G wheel "$name" && mkdir -p /home/"$name" && chown "$name":wheel /home/"$name"
-	export repodir="/home/$name/.local/src"
+	export repodir="/home/$name/.config"
 	mkdir -p "$repodir"
 	chown -R "$name":wheel "$(dirname "$repodir")"
 	echo "$name:$pass1" | chpasswd
@@ -98,7 +96,7 @@ Server = https://ftp.crifo.org/artix-universe/" >>/etc/pacman.conf
 		fi
 		pacman --noconfirm --needed -S \
 			artix-keyring artix-archlinux-support >/dev/null 2>&1
-		for repo in extra community; do
+		for repo in extra multilib; do
 			grep -q "^\[$repo\]" /etc/pacman.conf ||
 				echo "[$repo]
 Include = /etc/pacman.d/mirrorlist-arch" >>/etc/pacman.conf
@@ -200,7 +198,8 @@ vimplugininstall() {
 	# Installs vim plugins.
 	whiptail --infobox "Installing neovim plugins..." 7 60
 	mkdir -p "/home/$name/.config/nvim/autoload"
-	curl -Ls "https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim" >  "/home/$name/.config/nvim/autoload/plug.vim"
+	sh -c 'curl -fLo "${XDG_DATA_HOME:-$HOME/.local/share}"/nvim/site/autoload/plug.vim --create-dirs \
+       https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim'
 	chown -R "$name:wheel" "/home/$name/.config/nvim"
 	sudo -u "$name" nvim -c "PlugInstall|q|q"
 }
@@ -252,13 +251,6 @@ installffaddons(){
 	sudo -u "$name" mkdir -p "$pdir/chrome"
 	[ ! -f  "$pdir/chrome/userContent.css" ] && sudo -u "$name" echo ".vimvixen-console-frame { color-scheme: light !important; }
 #category-more-from-mozilla { display: none !important }" > "$pdir/chrome/userContent.css"
-}
-
-installprinters() {
-	whiptail --infobox "Downloading and installing config files..." 7 60
-	[ -x "$(command -v "cups")" ] || installpkg cups >/dev/null 2>&1
-	systemctl enable --now cups.service
-	usermod -a -G lp "$name"
 }
 
 finalize() {
@@ -380,12 +372,10 @@ pdir="$browserdir/$profile"
 # Kill the now unnecessary librewolf instance.
 pkill -u "$name" librewolf
 
-installprinters || error "Error seting up printing."
-
 # Allow wheel users to sudo with password and allow several system commands
 # (like `shutdown` to run without password).
 echo "%wheel ALL=(ALL:ALL) ALL" >/etc/sudoers.d/00-larbs-wheel-can-sudo
-echo "%wheel ALL=(ALL:ALL) NOPASSWD: /usr/bin/shutdown,/usr/bin/reboot,/usr/bin/systemctl suspend,/usr/bin/wifi-menu,/usr/bin/nmtui,/usr/bin/mount,/usr/bin/umount,/usr/bin/pacman -Syu,/usr/bin/pacman -Syyu,/usr/bin/pacman -Syyu --noconfirm,/usr/bin/loadkeys,/usr/bin/pacman -Syyuw --noconfirm,/usr/bin/pacman -S -u -y --config /etc/pacman.conf --,/usr/bin/pacman -S -y -u --config /etc/pacman.conf --" >/etc/sudoers.d/01-larbs-cmds-without-password
+echo "%wheel ALL=(ALL:ALL) NOPASSWD: /usr/bin/shutdown,/usr/bin/reboot,/usr/bin/systemctl suspend,/usr/bin/wifi-menu,/usr/bin/nmtui, /usr/bin/nmcli, /usr/bin/mount,/usr/bin/umount,/usr/bin/pacman -Syu,/usr/bin/pacman -Syyu,/usr/bin/pacman -Syyu --noconfirm,/usr/bin/loadkeys,/usr/bin/pacman -Syyuw --noconfirm,/usr/bin/pacman -S -u -y --config /etc/pacman.conf --,/usr/bin/pacman -S -y -u --config /etc/pacman.conf --" >/etc/sudoers.d/01-larbs-cmds-without-password
 echo "Defaults editor=/usr/bin/nvim" >/etc/sudoers.d/02-larbs-visudo-editor
 mkdir -p /etc/sysctl.d
 echo "kernel.dmesg_restrict = 0" > /etc/sysctl.d/dmesg.conf
