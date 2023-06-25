@@ -55,6 +55,18 @@ usercheck() {
 			--yesno "The user \`$name\` already exists on this system. LARBS can install for a user already existing, but it will OVERWRITE any conflicting settings/dotfiles on the user account.\\n\\nLARBS will NOT overwrite your user files, documents, videos, etc., so don't worry about that, but only click <CONTINUE> if you don't mind your settings being overwritten.\\n\\nNote also that LARBS will change $name's password to the one you just gave." 14 70
 }
 
+getadditionalsteps() {
+	eval choices="( $(whiptail --title "What would you like installed?" \
+	--checklist "This will install additional optional components that can be useful." 14 45 6 \
+		bluetooth bluetooth  off \
+		printing printing off \
+		syncthing syncthing off \
+		mullvad mullvad off \
+		suspend "suspend encryption" off 3>&1 1>&2 2>&3 3>&1) )"\
+		
+	export choices
+}
+
 preinstallmsg() {
 	whiptail --title "Let's get this party started!" --yes-button "Let's go!" \
 		--no-button "No, nevermind!" \
@@ -193,6 +205,44 @@ putgitrepo() {
 	sudo -u "$name" cp -rfT "$dir" "$2"
 }
 
+setupbluetooth() {
+	installpkg bluez
+	# Loads the btusb module if it isn't already loaded
+	[ -z "$(lsmod | grep btusb)" ] && modprobe btusb >/dev/null 2>&1
+	systemctl enable bluetooth.service --now >/dev/null 2>&1
+}
+
+setupprinting() {
+	installpkg cups
+	installpkg cups-pdf
+	systemctl enable cups.socket --now >/dev/null 2>&1
+}
+
+setupsyncthing() {
+	installpkg syncthing
+	systemctl enable syncthing@"$name".service --now >/dev/null 2>&1
+}
+
+setupmullvad() {
+	sudo -u "$name" $aurhelper -S --needed --noconfirm mullvad-vpn >/dev/null 2>&1
+	systemctl enable mullvad-daemon.service --now >/dev/null 2>&1
+}
+
+setupsuspendencryption()  {
+	# Installs encryption to RAM on suspend
+	installpkg go
+	sudo -u "$name" $aurhelper -S --needed --noconfirm go-luks-suspend >/dev/null 2>&1
+	go env -w GO111MODULE=off # Fix dumb compiler error
+	for hook in udev encrypt shutdown suspend ; do
+		currenthooks="$(grep "HOOKS" /etc/mkinitcpio.conf)"
+		if [[ ! "$currenthooks" == *"$hook"* ]]; then
+			sed -i "s/HOOKS=([^)]*/$& $hook/" /etc/mkinitcpio.conf
+		fi
+	done; unset hook;
+	mkinitcpio -P >/dev/null 2>&1
+	systemctl enable go-luks-suspend.service --now >/dev/null 2>&1
+}
+
 vimplugininstall() {
 	# TODO remove shortcuts error message
 	# Installs vim plugins.
@@ -253,6 +303,18 @@ installffaddons(){
 #category-more-from-mozilla { display: none !important }" > "$pdir/chrome/userContent.css"
 }
 
+setupaddtionalprograms() {
+	for choice in "${choices[@]}"; do
+		case $choice in
+			bluetooth) setupbluetooth || error "Failed to setup bluetooth support." ;;
+			printing)  setupprinting || error "Failed to setup printing support." ;;
+			syncthing) setupsyncthing || error "Failed to setup syncthing support." ;;
+			mullvad) setupmullvad || error "Failed to setup mullvad support." ;;
+			suspend) setupsuspendencryption || error "Failed to setup suspend encryption support." ;;
+		esac 
+	done; unset choices
+}
+
 finalize() {
 	whiptail --title "All done!" \
 		--msgbox "Congrats! Provided there were no hidden errors, the script completed successfully and all the programs and configuration files should be in place.\\n\\nTo run the new graphical environment, log out and log back in as your new user, then run the command \"startx\" to start the graphical environment (it will start automatically in tty1).\\n\\n.t Luke" 13 80
@@ -271,6 +333,9 @@ welcomemsg || error "User exited."
 
 # Get and verify username and password.
 getuserandpass || error "User exited."
+
+# Get addional items the user wants setup. 
+getadditionalsteps || error "User exited."
 
 # Give warning if user already exists.
 usercheck || error "User exited."
@@ -371,6 +436,9 @@ pdir="$browserdir/$profile"
 
 # Kill the now unnecessary librewolf instance.
 pkill -u "$name" librewolf
+
+# Set up additional programs the user specifed earlier.
+setupaddtionalprograms
 
 # Allow wheel users to sudo with password and allow several system commands
 # (like `shutdown` to run without password).
