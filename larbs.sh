@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Luke's Auto Rice Boostrapping Script (LARBS)
-# by Luke Smith <luke@lukesmith.xyz>
+# by Luke Smith <[email protected]>
 # License: GNU GPLv3
 
 ### OPTIONS AND VARIABLES ###
@@ -206,6 +206,7 @@ putgitrepo() {
 }
 
 setupbluetooth() {
+	whiptail --infobox "Setting up bluetooth..." 7 60
 	installpkg bluez
 	# Loads the btusb module if it isn't already loaded
 	[ -z "$(lsmod | grep btusb)" ] && modprobe btusb >/dev/null 2>&1
@@ -213,32 +214,36 @@ setupbluetooth() {
 }
 
 setupprinting() {
+	whiptail --infobox "Setting up printing..." 7 60
 	installpkg cups
 	installpkg cups-pdf
 	systemctl enable cups.socket --now >/dev/null 2>&1
 }
 
 setupsyncthing() {
+	whiptail --infobox "Setting up Syncthing..." 7 60
 	installpkg syncthing
 	systemctl enable syncthing@"$name".service --now >/dev/null 2>&1
 }
 
 setupmullvad() {
-	sudo -u "$name" $aurhelper -S --needed --noconfirm mullvad-vpn >/dev/null 2>&1
-	systemctl enable mullvad-daemon.service --now >/dev/null 2>&1
+	whiptail --infobox "Setting up Mullvad..." 7 60
+	sudo -u "$name" $aurhelper -S --needed --noconfirm mullvad-vpn-bin >/dev/null 2>&1
+	systemctl enable mullvad-daemon.service >/dev/null 2>&1
 }
 
 setupsuspendencryption()  {
+	whiptail --infobox "Setting up suspend encryption..." 7 60
 	# Installs encryption to RAM on suspend
 	installpkg go
+	sudo -u "$name" go env -w GO111MODULE=off # Fix dumb compiler error
 	sudo -u "$name" $aurhelper -S --needed --noconfirm go-luks-suspend >/dev/null 2>&1
-	go env -w GO111MODULE=off # Fix dumb compiler error
 	for hook in udev encrypt shutdown suspend ; do
 		currenthooks="$(grep "HOOKS" /etc/mkinitcpio.conf)"
 		if [[ ! "$currenthooks" == *"$hook"* ]]; then
-			sed -i "s/HOOKS=([^)]*/$& $hook/" /etc/mkinitcpio.conf
+			sed -i "s/HOOKS=([^)]*/& $hook/" /etc/mkinitcpio.conf
 		fi
-	done; unset hook;
+	done; unset hook
 	mkinitcpio -P >/dev/null 2>&1
 	systemctl enable go-luks-suspend.service --now >/dev/null 2>&1
 }
